@@ -44,7 +44,6 @@
     background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 60%, #FFCCBC 100%);
   }
   
-  /* Screens */
   .screen {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -111,7 +110,6 @@
     box-shadow: 0 2px 0 #0288d1, 0 4px 10px rgba(0,0,0,0.3);
   }
   
-  /* HUD */
   #hud {
     position: absolute;
     top: 0; left: 0; right: 0;
@@ -140,7 +138,6 @@
     backdrop-filter: blur(4px);
   }
   
-  /* Question Modal */
   #question-modal {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -230,7 +227,6 @@
   
   .next-btn.show { display: inline-block; }
   
-  /* Mobile Controls */
   #controls {
     position: absolute;
     bottom: 15px;
@@ -273,7 +269,6 @@
     border-color: rgba(255,235,59,0.8);
   }
   
-  /* Stage intro */
   #stage-intro {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -303,7 +298,6 @@
     line-height: 1.6;
   }
   
-  /* Teacher credit */
   .credit {
     position: absolute;
     bottom: 8px;
@@ -314,7 +308,6 @@
     z-index: 60;
   }
   
-  /* Instructions list */
   .instr {
     text-align: right;
     background: rgba(255,255,255,0.15);
@@ -342,7 +335,6 @@
 </head>
 <body>
 <div id="game-container">
-  <!-- Start Screen -->
   <div id="start-screen" class="screen active">
     <h1>🩸 مغامرة قطرة الدم</h1>
     <h2>مغامرة تعليمية ممتعة!</h2>
@@ -360,14 +352,12 @@
     <p style="margin-top:20px;font-size:0.85rem;opacity:0.8;">إعداد: معلمة العلوم هدى العتيبي</p>
   </div>
   
-  <!-- Stage Intro -->
   <div id="stage-intro">
     <h2 id="stage-title">المرحلة 1</h2>
     <p id="stage-desc">الوصف</p>
     <button class="btn" onclick="beginStage()">هيا نبدأ!</button>
   </div>
   
-  <!-- HUD -->
   <div id="hud">
     <div class="hearts" id="hearts">❤️❤️❤️</div>
     <div class="coins-box">🩸 <span id="coins">0</span></div>
@@ -375,10 +365,8 @@
     <div class="stage-box" id="stage-label">المرحلة 1</div>
   </div>
   
-  <!-- Canvas -->
   <canvas id="gameCanvas"></canvas>
   
-  <!-- Mobile Controls -->
   <div id="controls">
     <div style="display:flex;gap:12px;">
       <div class="ctrl-btn" id="btn-left">➡️</div>
@@ -387,7 +375,6 @@
     <div class="ctrl-btn jump-btn" id="btn-jump">⬆️</div>
   </div>
   
-  <!-- Question Modal -->
   <div id="question-modal">
     <div class="q-box">
       <h3 id="q-text">السؤال؟</h3>
@@ -397,7 +384,6 @@
     </div>
   </div>
   
-  <!-- Win Screen -->
   <div id="win-screen" class="screen">
     <h1>🎉 مبروك! نجحتِ</h1>
     <h2>أكملتِ مغامرة قطرة الدم بنجاح</h2>
@@ -408,7 +394,6 @@
     <p style="margin-top:25px;font-size:0.9rem;">إعداد: معلمة العلوم هدى العتيبي</p>
   </div>
   
-  <!-- Lose Screen -->
   <div id="lose-screen" class="screen">
     <h1>💔 انتهت القلوب</h1>
     <h2>لا تيأسي يا بطلة!</h2>
@@ -422,7 +407,6 @@
 </div>
 
 <script>
-// ==================== GAME DATA ====================
 const STAGES = [
   {
     id: 1,
@@ -556,7 +540,6 @@ const STAGES = [
   }
 ];
 
-// ==================== GAME STATE ====================
 let canvas, ctx;
 let player, cameraX = 0;
 let currentStage = 0;
@@ -573,6 +556,80 @@ let invincible = 0;
 let particles = [];
 let isMobile = false;
 
+// ==================== SOUND SYSTEM (8-bit style) ====================
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playTone(freq, duration, type = 'square', volume = 0.15, slideTo = null) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  if (slideTo) {
+    osc.frequency.linearRampToValueAtTime(slideTo, audioCtx.currentTime + duration);
+  }
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function playJump() {
+  initAudio();
+  playTone(320, 0.12, 'square', 0.12, 520);
+}
+
+function playCoin() {
+  initAudio();
+  playTone(880, 0.08, 'square', 0.12);
+  setTimeout(() => playTone(1175, 0.15, 'square', 0.1), 60);
+}
+
+function playHit() {
+  initAudio();
+  playTone(180, 0.25, 'sawtooth', 0.18, 80);
+}
+
+function playCorrect() {
+  initAudio();
+  playTone(523, 0.1, 'square', 0.12);
+  setTimeout(() => playTone(659, 0.1, 'square', 0.12), 100);
+  setTimeout(() => playTone(784, 0.2, 'square', 0.12), 200);
+}
+
+function playWrong() {
+  initAudio();
+  playTone(300, 0.15, 'sawtooth', 0.15);
+  setTimeout(() => playTone(200, 0.25, 'sawtooth', 0.15), 120);
+}
+
+function playStageClear() {
+  initAudio();
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((n, i) => setTimeout(() => playTone(n, 0.18, 'square', 0.13), i * 120));
+}
+
+function playWin() {
+  initAudio();
+  const melody = [523, 659, 784, 1047, 784, 1047, 1319];
+  melody.forEach((n, i) => setTimeout(() => playTone(n, 0.2, 'square', 0.12), i * 140));
+}
+
+function playStart() {
+  initAudio();
+  playTone(392, 0.1, 'square', 0.1);
+  setTimeout(() => playTone(523, 0.15, 'square', 0.1), 100);
+}
+
 // Player
 const PLAYER_W = 40;
 const PLAYER_H = 48;
@@ -580,21 +637,18 @@ const GRAVITY = 0.55;
 const JUMP_FORCE = -12.5;
 const MOVE_SPEED = 6.8;
 
-// ==================== INIT ====================
 function init() {
   canvas = document.getElementById('gameCanvas');
   ctx = canvas.getContext('2d');
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
   
-  // Keyboard
   window.addEventListener('keydown', e => {
     keys[e.code] = true;
     if (['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code)) e.preventDefault();
   });
   window.addEventListener('keyup', e => keys[e.code] = false);
   
-  // Touch controls
   setupTouchControls();
   
   isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 700;
@@ -630,8 +684,8 @@ function setupTouchControls() {
   jump.addEventListener('mouseleave', () => { keys['Space'] = false; keys['ArrowUp'] = false; });
 }
 
-// ==================== SCREENS ====================
 function startGame() {
+  playStart();
   document.getElementById('start-screen').classList.remove('active');
   lives = 3;
   score = 0;
@@ -651,6 +705,7 @@ function showStageIntro() {
 }
 
 function beginStage() {
+  initAudio();
   document.getElementById('stage-intro').classList.remove('active');
   loadStage(currentStage);
   document.getElementById('hud').classList.add('active');
@@ -723,7 +778,6 @@ function showStart() {
   document.getElementById('start-screen').classList.add('active');
 }
 
-// ==================== QUESTIONS ====================
 function showQuestion() {
   gameRunning = false;
   const s = STAGES[currentStage];
@@ -767,10 +821,12 @@ function selectAnswer(idx, q, btn) {
     score += 50;
     coins += 5;
     answeredCorrect++;
+    playCorrect();
   } else {
     btn.classList.add('wrong');
     buttons[q.correct].classList.add('correct');
     lives--;
+    playWrong();
     updateHUD();
     if (lives <= 0) {
       setTimeout(() => {
@@ -800,15 +856,16 @@ function closeQuestion() {
     score += 150;
     updateHUD();
     if (currentStage >= STAGES.length - 1) {
+      playWin();
       setTimeout(showWin, 600);
     } else {
+      playStageClear();
       currentStage++;
       setTimeout(showStageIntro, 700);
     }
   }
 }
 
-// ==================== PHYSICS & UPDATE ====================
 function update() {
   if (!gameRunning || !player) return;
   
@@ -825,6 +882,7 @@ function update() {
   if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.onGround) {
     player.vy = JUMP_FORCE;
     player.onGround = false;
+    playJump();
   }
   
   player.vy += GRAVITY;
@@ -843,6 +901,7 @@ function update() {
       coins++;
       score += 10;
       spawnParticles(c.x, c.y, '#ffeb3b');
+      playCoin();
       updateHUD();
     }
   }
@@ -855,6 +914,7 @@ function update() {
         invincible = 90;
         player.vy = -8;
         spawnParticles(player.x + 20, player.y + 20, '#ff1744');
+        playHit();
         updateHUD();
         if (lives <= 0) {
           showLose();
@@ -933,7 +993,6 @@ function spawnParticles(x, y, color) {
   }
 }
 
-// ==================== DRAW ====================
 function draw() {
   if (!ctx) return;
   const s = STAGES[currentStage] || STAGES[0];
@@ -1085,14 +1144,12 @@ function drawDecor() {
   ctx.globalAlpha = 1;
 }
 
-// ==================== LOOP ====================
 function gameLoop() {
   update();
   draw();
   requestAnimationFrame(gameLoop);
 }
 
-// Start
 window.onload = init;
 </script>
 </body>
